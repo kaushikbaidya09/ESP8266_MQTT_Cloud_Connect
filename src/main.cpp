@@ -2,43 +2,31 @@
 #include <PubSubClient.h>
 
 // WiFi
-const char *ssid = "Restricted Connection";   // Your WiFi name
-const char *password = "24681355";            // Your WiFi password
+const char *ssid = "[Your WiFi Name]";   // Your WiFi name
+const char *password = "[Your WiFi Password]";            // Your WiFi password
 
 // MQTT Broker
-const char *mqtt_broker = "dfe88d08.ala.us-east-1.emqxsl.com"; // broker address
-const char *mqtt_username = "User01"; // username for authentication
-const char *mqtt_password = "Play#KB05"; // password for authentication
+const char *mqtt_broker = "[Your Broker Address]"; // broker address
+const char *mqtt_username = "[Broker User]"; // username for authentication
+const char *mqtt_password = "[Broker Password]"; // password for authentication
 const int mqtt_port = 8883; // port of MQTT over TCP
-const char *client_id = "KBs_Device_01";
+const char *client_id = "[Client-Id]";
 
-// Publish
+// Publish topics
 const char *mqtt_topic_pub_01 = "pub01";
-// Subscribe
+// Subscribe topics
 const char *mqtt_topic_sub_01 = "sub01";
 
 // init wifi client
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
-/*
-  The common fingerprints of EMQX broker, for reference only.
-  If you are not using EMQX Cloud Serverless or public EMQX broker,
-  you need to calculate the sha1 fingerprint of your server certificate
-  and update the 'fingerprint' variable below.
-*/
-// 1. fingerprint of public emqx broker. Host: broker.emqx.io
-// const char* fingerprint = "B6 C6 FF 82 C6 59 09 BB D6 39 80 7F E7 BC 10 C9 19 C8 21 8E";
-// 2. fingerprint of EMQX Cloud Serverless. Host: *.emqxsl.com
 const char* fingerprint = "42:AE:D8:A3:42:F1:C4:1F:CD:64:9C:D7:4B:A1:EE:5B:5E:D7:E2:B5";
-// 3. fingerprint of EMQX Cloud Serverless. Host: *.emqxsl.cn
-// const char* fingerprint = "7E:52:D3:84:48:3C:5A:9F:A4:39:9A:8B:27:01:B1:F8:C6:AD:D4:47";
-
 void callback(char* topic, byte* payload, unsigned int length);
 
 void setup() {
-  // Set software serial baud to 115200;
   Serial.begin(9600);
+
   // connecting to a WiFi network
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -63,7 +51,7 @@ void setup() {
         delay(5000);
     }
   }
-  client.publish(mqtt_topic_pub_01, "Hi EMQX I'm KB9520");
+  client.publish(mqtt_topic_pub_01, "Hi I'am ESP8266");
 }
 
 String message = "";
