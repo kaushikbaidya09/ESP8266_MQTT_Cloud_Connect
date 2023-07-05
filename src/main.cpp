@@ -1,93 +1,119 @@
+#include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
-#include <PubSubClient.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266httpUpdate.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClient.h>
 
-// WiFi
-const char *ssid = "[Your WiFi Name]";   // Your WiFi name
-const char *password = "[Your WiFi Password]";            // Your WiFi password
+#define ssid "Restricted Connection"
+#define pass "24681355"
+#define CurrentVersion 0.10
 
-// MQTT Broker
-const char *mqtt_broker = "[Your Broker Address]"; // broker address
-const char *mqtt_username = "[Broker User]"; // username for authentication
-const char *mqtt_password = "[Broker Password]"; // password for authentication
-const int mqtt_port = 8883; // port of MQTT over TCP
-const char *client_id = "[Client-Id]";
-
-// Publish topics
-const char *mqtt_topic_pub_01 = "pub01";
-// Subscribe topics
-const char *mqtt_topic_sub_01 = "sub01";
-
-// init wifi client
-WiFiClientSecure espClient;
-PubSubClient client(espClient);
-
-const char* fingerprint = "42:AE:D8:A3:42:F1:C4:1F:CD:64:9C:D7:4B:A1:EE:5B:5E:D7:E2:B5";
-void callback(char* topic, byte* payload, unsigned int length);
+ESP8266WiFiMulti WiFiMulti;
 
 void setup() {
   Serial.begin(9600);
-
-  // connecting to a WiFi network
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  Serial.println();
+  Serial.println("version 0.0");
+  Serial.println();
+  pinMode(2,OUTPUT);
+  
+  for (uint8_t t = 4; t > 0; t--) {
+    Serial.printf("[SETUP] WAIT %d...\n", t);
+    Serial.flush();
     delay(1000);
-    Serial.println("Connecting to WiFi...");
   }
-  Serial.println("Connected to the WiFi network");
 
-  // connecting to a mqtt broker
-  espClient.setFingerprint(fingerprint);
-  client.setServer(mqtt_broker, mqtt_port);
-  client.setCallback(callback);
-  while (!client.connected()) {
-    Serial.printf("The client %s connects to the mqtt broker\n", client_id);
-    if (client.connect(client_id, mqtt_username, mqtt_password)) {
-        Serial.println("Connected to MQTT broker.");
-        client.subscribe(mqtt_topic_sub_01);
-    } else {
-        Serial.print("Failed to connect to MQTT broker, rc=");
-        Serial.print(client.state());
-        Serial.println(" Retrying in 5 seconds.");
-        delay(5000);
-    }
-  }
-  client.publish(mqtt_topic_pub_01, "Hi I'am ESP8266");
-}
-
-String message = "";
-void callback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("Message arrived in topic: ");
-    Serial.println(topic);
-    Serial.print("Message:");
-    message = "";
-    for (int i = 0; i < length; i++) {
-        message = "" + ((String) payload[i]);
-        Serial.print((char) payload[i]);
-    }
-    Serial.println();
-    Serial.print("Variable Massage: ");
-    Serial.println(message);
-    Serial.println("-----------------------");
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.println("Reconnecting to MQTT broker...");
-    if (client.connect(client_id, mqtt_username, mqtt_password)) {
-        Serial.println("Reconnected to MQTT broker.");
-        client.subscribe(mqtt_topic_sub_01);
-    } else {
-        Serial.print("Failed to reconnect to MQTT broker, rc=");
-        Serial.print(client.state());
-        Serial.println("Retrying in 5 seconds.");
-        delay(5000);
-    }
+  Serial.println("Connect to a Wifi");
+  WiFi.mode(WIFI_STA);
+  WiFiMulti.addAP(ssid, pass);
+  while (WiFiMulti.run() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(500);
   }
 }
 
-void loop() {
-  if (!client.connected()) {
-    reconnect();
+void update_started() {
+  Serial.println("CALLBACK:  HTTP update process started");
+}
+
+void update_finished() {
+  Serial.println("CALLBACK:  HTTP update process finished");
+}
+
+void update_progress(int cur, int total) {
+  Serial.printf("CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total);
+}
+
+void update_error(int err) {
+  Serial.printf("CALLBACK:  HTTP update fatal error code %d\n", err);
+}
+
+void otaUpdate(String url)
+{
+  WiFiClient client;
+  ESPhttpUpdate.setLedPin(LED_BUILTIN, LOW);
+
+  ESPhttpUpdate.onStart(update_started);
+  ESPhttpUpdate.onEnd(update_finished);
+  ESPhttpUpdate.onProgress(update_progress);
+  ESPhttpUpdate.onError(update_error);
+
+  t_httpUpdate_return ret = ESPhttpUpdate.update(client, url);
+    
+  switch (ret) {
+    case HTTP_UPDATE_FAILED:
+      Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+      break;
+
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("HTTP_UPDATE_NO_UPDATES");
+      break;
+
+    case HTTP_UPDATE_OK:
+      Serial.println("HTTP_UPDATE_OK");
+      break;
   }
-  client.loop();
+}
+
+void check_for_updates()
+{
+  WiFiClient WifiClient;
+  Serial.print("Current Firmware - ");
+  Serial.print(CurrentVersion); 
+  Serial.println(" Checking for Updates ...");
+
+  HTTPClient http;  //Object of class HTTPClient
+  http.begin(WifiClient, "/firmware.json");
+  int httpCode = http.GET();          
+  String payload = "";                                           
+  if (httpCode > 0) {
+    payload = http.getString();
+  }
+  http.end();   //Close connection
+
+  String json = "";
+  DynamicJsonDocument doc(1024);
+  json = payload.c_str();
+  DeserializationError error = deserializeJson(doc,json);
+  if(error)
+  {
+    Serial.println(" deserialization failed");
+  }
+  if(doc["ver"] > CurrentVersion && doc["ver"] != CurrentVersion)
+  {
+    Serial.println("New Firmware Available. Downloading new Firmware ... ");
+    otaUpdate(doc["link"]);
+  }
+  else
+  {
+    Serial.println("Already Running Latest Firmware.");
+  }
+}
+
+void loop()
+{
+  check_for_updates();
+  delay(1000);
 }
