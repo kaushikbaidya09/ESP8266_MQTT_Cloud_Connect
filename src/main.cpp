@@ -85,7 +85,7 @@ void check_for_updates()
   Serial.println(" Checking for Updates ...");
 
   HTTPClient http;  //Object of class HTTPClient
-  http.begin(WifiClient, "/firmware.json");
+  http.begin(WifiClient, "https://github.com/kaushikbaidya09/ESP8266_MQTT_Cloud_Connect/blob/OTA/firmware/firmware.json");
   int httpCode = http.GET();          
   String payload = "";                                           
   if (httpCode > 0) {
@@ -104,7 +104,7 @@ void check_for_updates()
   if(doc["ver"] > CurrentVersion && doc["ver"] != CurrentVersion)
   {
     Serial.println("New Firmware Available. Downloading new Firmware ... ");
-    otaUpdate(doc["link"]);
+    otaUpdate(doc["https://github.com/kaushikbaidya09/ESP8266_MQTT_Cloud_Connect/blob/OTA/firmware/firmware.bin"]);
   }
   else
   {
