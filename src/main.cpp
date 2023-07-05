@@ -7,7 +7,7 @@
 
 #define ssid "Restricted Connection"
 #define pass "24681355"
-#define CurrentVersion 0.10
+#define CurrentVersion 0.0
 
 ESP8266WiFiMulti WiFiMulti;
 
